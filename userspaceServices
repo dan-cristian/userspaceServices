@@ -61,6 +61,7 @@ launchUserServices ()
 				if [ "$dedicatedDirectory" == "$STARTUPDIR" ]
 				then
 					logger -t "$NAME" "Launching $file in default mode(background) for user $username"
+					#su $username -c "nohup $file >/dev/null 2>&1 &"
 					su $username -c "nohup $file >/dev/null 2>&1 &"
 				elif [ "$dedicatedDirectory" == "$SHUTDOWNDIR" ] || [ "$dedicatedDirectory" == "$STATUSDIR" ]
 				then
