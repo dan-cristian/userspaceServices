@@ -42,6 +42,7 @@ launchUserServices ()
 {
 	for file in "$servicesDir"/*
 	do
+		logger -t "$NAME" "Processing $file for user $username in folder $dedicatedDirectory"
 		if [ -f "$file" ] && [ -x "$file" ]
 		then
 			# Depending on the file extension the script/service will either be
@@ -62,14 +63,20 @@ launchUserServices ()
 				then
 					logger -t "$NAME" "Launching $file in default mode(background) for user $username"
 					#su $username -c "nohup $file >/dev/null 2>&1 &"
-					su $username -c "nohup $file >/dev/null 2>&1 &"
+					su $username -c "nohup $file start &"
+					logger -t "$NAME" "Launching (background) completed"
 				elif [ "$dedicatedDirectory" == "$SHUTDOWNDIR" ] || [ "$dedicatedDirectory" == "$STATUSDIR" ]
 				then
 					logger -t "$NAME" "Launching $file in default mode(foreground) for user $username"
-					su $username -c "$file"
+					su $username -c "$file stop"
+					logger -t "$NAME" "Launching (foreground) completed"
+				else
+					logger -t "$NAME" "Skipping processing $file for user $username [$STARTUPDIR][$SHUTDOWNDIR][$STATUSDIR]"
 				fi
 				;;
 			esac
+		else
+			logger -t "$NAME" "Unable to process $file for user $username"
 		fi
 	done
 }
@@ -87,6 +94,7 @@ launchAll ()
 
 		if [ $userID -eq 0 -o $userID -ge 1000 ] && [ $userID -ne 65534 ]
 		then
+			logger -t "$NAME" "Executing scripts for user $username"
 			cd "$homeDir"
 			# Lets try to create the missing directories, but only if they don't already exist.
 			# Because for example some user may already have a file with the same name. In which
@@ -121,9 +129,11 @@ launchAll ()
 			then
 				if [ "$dedicatedDirectory" == "$STATUSDIR" ]
 				then
+					logger -t "$NAME" "Run scripts sync for folder $dedicatedDirectory"
 					launchUserServices # Run synchronously. So that status outputs of individual users don't get mixed up.
 				else
-					launchUserServices & # Run asynchronously. Services of individual users run independently of each other.
+					logger -t "$NAME" "Run scripts Async for folder $dedicatedDirectory"
+					launchUserServices # Run asynchronously. Services of individual users run independently of each other.
 				fi
 			fi
 		fi
@@ -138,7 +148,10 @@ case "$1" in
 	then
 		touch "$LOCKFILE"
 		dedicatedDirectory="$STARTUPDIR"
+		log_daemon_msg " (Lock file is: $LOCKFILE) "
 		launchAll
+	else
+		log_daemon_msg "... Script was already started, ignoring start request"
 	fi
 
 	log_end_msg 0
@@ -150,6 +163,8 @@ case "$1" in
 		dedicatedDirectory="$SHUTDOWNDIR"
 		launchAll
 		rm -rf "$LOCKFILE"
+	else
+		log_daemon_msg "... Script was already stopped, ignoring stop request"
 	fi
 
 	log_end_msg 0
