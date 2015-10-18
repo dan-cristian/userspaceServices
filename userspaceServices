@@ -63,11 +63,14 @@ launchUserServices ()
 				then
 					logger -t "$NAME" "Launching $file in default mode(background) for user $username"
 					#su $username -c "nohup $file >/dev/null 2>&1 &"
+					# removed redirection as I want the output to be collected in journal
+					# added parameter start so I can use the same script for start & stop
 					su $username -c "nohup $file start &"
 					logger -t "$NAME" "Launching (background) completed"
 				elif [ "$dedicatedDirectory" == "$SHUTDOWNDIR" ] || [ "$dedicatedDirectory" == "$STATUSDIR" ]
 				then
 					logger -t "$NAME" "Launching $file in default mode(foreground) for user $username"
+					# added parameter stop so I can use the same script for start & stop
 					su $username -c "$file stop"
 					logger -t "$NAME" "Launching (foreground) completed"
 				else
@@ -133,6 +136,7 @@ launchAll ()
 					launchUserServices # Run synchronously. So that status outputs of individual users don't get mixed up.
 				else
 					logger -t "$NAME" "Run scripts Async for folder $dedicatedDirectory"
+					# change by Dan Cristian. Running this async generated a problem as some scripts got closed before completion
 					launchUserServices # Run asynchronously. Services of individual users run independently of each other.
 				fi
 			fi
